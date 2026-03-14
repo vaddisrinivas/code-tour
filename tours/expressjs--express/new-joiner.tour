@@ -1,0 +1,105 @@
+{
+  "$schema": "https://aka.ms/codetour-schema",
+  "title": "Express.js New Joiner Orientation",
+  "description": "A guided walkthrough of the Express.js codebase for new contributors. Covers the entry point, application factory, request/response prototypes, the view system, utility helpers, and the examples directory.",
+  "steps": [
+    {
+      "title": "Welcome to Express.js",
+      "description": "Express is a fast, unopinionated, minimalist web framework for Node.js (v18+). The entire public API ships in a handful of files under `lib/`. This tour walks you through each one in the order a request flows through the framework, ending with the examples and test layout so you know where to look when contributing."
+    },
+    {
+      "file": "index.js",
+      "line": 11,
+      "title": "Package entry point",
+      "description": "The root `index.js` is a one-liner that re-exports `lib/express`. All `require('express')` calls in user code land here. Keeping this file thin means the real logic stays in `lib/` and is easy to locate."
+    },
+    {
+      "file": "lib/express.js",
+      "line": 36,
+      "title": "createApplication — the factory function",
+      "description": "`createApplication()` is what you get when you call `express()`. It builds a plain function (`app`) that can be passed directly to `http.createServer`, then mixes in both `EventEmitter` and the application prototype (`proto`) using `merge-descriptors`. This prototype-mixin pattern is the key architectural choice: `app` is simultaneously a function, an event emitter, and a rich API object."
+    },
+    {
+      "file": "lib/express.js",
+      "line": 70,
+      "title": "Public exports — Router, Route, and built-in middleware",
+      "description": "Below the factory, `lib/express.js` re-exports `Router` and `Route` (both from the external `router` package) and the five built-in middleware helpers: `express.json`, `express.raw`, `express.text`, `express.urlencoded` (all thin wrappers around `body-parser`) and `express.static` (from `serve-static`). This is the complete public surface of the module."
+    },
+    {
+      "file": "lib/application.js",
+      "line": 59,
+      "title": "app.init — bootstrapping the application",
+      "description": "`app.init()` is called once inside `createApplication`. It sets up the `cache`, `engines`, and `settings` dictionaries, runs `defaultConfiguration()`, and lazily creates the internal `Router` instance via `Object.defineProperty`. The lazy getter means the router is only instantiated the first time a route or middleware is registered, which avoids overhead for applications that mount Express as a sub-app."
+    },
+    {
+      "file": "lib/application.js",
+      "line": 90,
+      "title": "defaultConfiguration — application settings",
+      "description": "This method establishes the defaults every Express app ships with: `etag: 'weak'`, `env` from `NODE_ENV`, `query parser: 'simple'`, `subdomain offset: 2`, and `trust proxy: false`. It also wires up the `mount` event so that child apps (sub-applications) automatically inherit the parent's trust-proxy, engines, and settings prototypes."
+    },
+    {
+      "file": "lib/application.js",
+      "line": 152,
+      "title": "app.handle — the request dispatch entry point",
+      "description": "`app.handle(req, res, callback)` is the method invoked for every incoming HTTP request. It attaches the `X-Powered-By` header, creates circular `req.res`/`res.req` references, swaps the prototypes of the raw Node `IncomingMessage` and `ServerResponse` objects to Express's enriched versions, initialises `res.locals`, and then delegates to `this.router.handle(...)`. Everything before that delegation is Express-level housekeeping."
+    },
+    {
+      "file": "lib/application.js",
+      "line": 190,
+      "title": "app.use — mounting middleware",
+      "description": "`app.use()` is the primary way to attach middleware and sub-applications. When the argument has `.handle` and `.set` (i.e. it is another Express app), it wraps it in a `mounted_app` function that saves and restores the parent's `req.app`/`res.app` after the child finishes, then fires the `mount` event. Ordinary middleware functions are forwarded straight to the router."
+    },
+    {
+      "file": "lib/application.js",
+      "line": 351,
+      "title": "app.set / app.get — the settings store",
+      "description": "`app.set(key, value)` stores a configuration value and triggers side-effects for three special keys: `etag` (compiles an etag generator function), `query parser` (compiles a query-parsing function), and `trust proxy` (compiles the proxy-trust function). `app.get(key)` is the read path — the same method with one argument. This overloaded design lets `app.get('env')` read a setting while `app.get('/path', handler)` registers a GET route."
+    },
+    {
+      "file": "lib/request.js",
+      "line": 30,
+      "title": "req — Express's request prototype",
+      "description": "`req` is a plain object that inherits from Node's `http.IncomingMessage.prototype`. Express does not subclass `IncomingMessage`; instead it swaps the prototype of the raw request object at dispatch time (in `app.handle`). Every property you use on `req` — `req.query`, `req.hostname`, `req.ip`, `req.fresh`, `req.xhr`, etc. — is defined below this line as either a method or a lazy getter via `defineGetter`."
+    },
+    {
+      "file": "lib/request.js",
+      "line": 230,
+      "title": "req.query — parsed query string",
+      "description": "`req.query` is a lazy getter that reads the `'query parser fn'` setting compiled in `app.set`. The default (`'simple'`) uses Node's built-in `querystring.parse`; setting it to `'extended'` switches to `qs`. Setting it to `false` disables parsing entirely, returning an empty object. This design lets applications opt into more powerful (but heavier) query parsing without paying the cost by default."
+    },
+    {
+      "file": "lib/response.js",
+      "line": 42,
+      "title": "res — Express's response prototype",
+      "description": "Mirrors the approach in `request.js`: `res` inherits from `http.ServerResponse.prototype` via prototype-swap at dispatch time. The file adds high-level helpers: `res.send`, `res.json`, `res.jsonp`, `res.sendFile`, `res.download`, `res.redirect`, `res.render`, `res.cookie`, `res.set`/`res.header`, and more — all chainable and built on top of Node's raw `setHeader`/`end` calls."
+    },
+    {
+      "file": "lib/response.js",
+      "line": 125,
+      "title": "res.send — universal response sender",
+      "description": "`res.send` is the workhorse: it infers `Content-Type` from the body type (string → `text/html`, Buffer → `application/octet-stream`, object → delegates to `res.json`), sets `Content-Length`, conditionally generates a weak ETag, handles `304 Not Modified` freshness checks, and strips bodies for `HEAD` and `204`/`304` responses. Most other send-family methods (`res.json`, `res.sendStatus`) ultimately call this."
+    },
+    {
+      "file": "lib/view.js",
+      "line": 52,
+      "title": "View — template engine abstraction",
+      "description": "The `View` constructor resolves a template name to an absolute file path (checking both `<name>.<ext>` and `<name>/index.<ext>` automatically) and lazy-loads the template engine via `require(ext).__express`. `app.render` and `res.render` both instantiate this class. To register a custom engine call `app.engine('html', renderFn)` — the engine is cached in `app.engines` so it is only `require()`d once."
+    },
+    {
+      "file": "lib/utils.js",
+      "line": 29,
+      "title": "utils.js — internal helpers",
+      "description": "`utils.js` provides the plumbing used by the rest of `lib/`. Key exports: `methods` (the list of lowercase HTTP method names from Node, used to dynamically add `app.get`, `app.post`, etc. in `application.js`), `compileETag` / `compileQueryParser` / `compileTrust` (the compiler functions called by `app.set`), and `normalizeType` / `setCharset` (used by the response helpers)."
+    },
+    {
+      "directory": "examples",
+      "title": "Examples — runnable reference apps",
+      "description": "The `examples/` directory contains ~20 standalone Express apps covering common patterns: `hello-world` (minimal GET route), `auth` (session-based login), `mvc` (model-view-controller layout), `multi-router` (mounting multiple routers), `static-files`, `error-pages`, and more. Each example is self-contained and runnable with `node examples/<name>/index.js`. They are also exercised by the acceptance tests in `test/acceptance/`."
+    },
+    {
+      "directory": "test",
+      "title": "Test suite layout",
+      "description": "Tests live in `test/` and are run with Mocha via `npm test`. Files are organised by surface: `test/app.*.js` for application-level behaviour, `test/req.*.js` and `test/res.*.js` for the request and response prototypes, `test/express.*.js` for the built-in middleware, and `test/acceptance/` for full end-to-end tests against the example apps. `test/support/env.js` sets `NODE_ENV=test` so view-cache and error-logging behave consistently."
+    }
+  ]
+}

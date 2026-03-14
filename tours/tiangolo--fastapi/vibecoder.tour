@@ -1,0 +1,49 @@
+{
+  "$schema": "https://aka.ms/codetour-schema",
+  "title": "FastAPI: How It Actually Works",
+  "description": "A quick rip through FastAPI's core machinery — from `FastAPI()` to response out the door. Vibecoder edition.",
+  "steps": [
+    {
+      "title": "The Entry Point: FastAPI is just Starlette",
+      "file": "fastapi/applications.py",
+      "line": 45,
+      "description": "Everything starts here. `class FastAPI(Starlette)` — that's the whole secret sauce in one line. FastAPI is a Starlette subclass, which means it inherits the full ASGI machinery (routing, middleware, lifespan) and then bolts on its own superpowers: dependency injection, Pydantic validation, and automatic OpenAPI generation. The `__init__` is a thousand-line docstring avalanche of annotated params, but the vibe is: it's Starlette with extras."
+    },
+    {
+      "title": "The Route Object: APIRoute wires your function to ASGI",
+      "file": "fastapi/routing.py",
+      "line": 807,
+      "description": "When you call `@app.get('/items')`, FastAPI creates an `APIRoute` (a subclass of Starlette's `Route`). The `__init__` does the heavy lifting at *registration* time — not at request time. It calls `get_dependant()` to inspect your function's signature and build a dependency tree, creates Pydantic model fields for the response model, and at line 972 seals the deal: `self.app = request_response(self.get_route_handler())`. Your function is now an ASGI app."
+    },
+    {
+      "title": "The Dependency Tree: Dependant is the IR for your function",
+      "file": "fastapi/dependencies/models.py",
+      "line": 32,
+      "description": "The `Dependant` dataclass is FastAPI's internal representation of an endpoint (or a dependency). It holds typed lists for `path_params`, `query_params`, `header_params`, `cookie_params`, `body_params`, and a recursive `dependencies` list. When `get_dependant()` runs at route registration time, it inspects your function signature via `inspect.signature`, detects which params come from where (path, query, body, `Depends(...)`) and builds this tree. This is the core abstraction that makes everything downstream work."
+    },
+    {
+      "title": "Signature inspection: get_dependant reads your type hints",
+      "file": "fastapi/dependencies/utils.py",
+      "line": 284,
+      "description": "`get_dependant()` is where Python introspection becomes FastAPI magic. It calls `get_typed_signature(call)` to resolve all annotations (including string forward refs), then loops over every param. If the param has a `Depends(...)` default, it recurses and builds a sub-`Dependant`. If the annotation is `Request`, `Response`, `BackgroundTasks`, etc., it stores the param name for special injection. Otherwise it calls `analyze_param()` to figure out whether it's a `Path`, `Query`, `Header`, `Cookie`, or `Body` field — using Pydantic's `FieldInfo` as the carrier."
+    },
+    {
+      "title": "Request time: get_request_handler is the hot path",
+      "file": "fastapi/routing.py",
+      "line": 347,
+      "description": "`get_request_handler()` returns the async closure that runs on every request. It closes over the pre-built `Dependant`, response model fields, and config. The inner `async def app(request)` at line 378 does the real work: reads the request body, calls `solve_dependencies()` to recursively resolve the entire dep tree (extracting and validating path/query/header/cookie/body values), calls your endpoint function via `run_endpoint_function()`, serializes the return value through `serialize_response()`, and wraps it in the correct response class. Errors at any step raise typed validation errors."
+    },
+    {
+      "title": "Dependency resolution: solve_dependencies runs the tree",
+      "file": "fastapi/dependencies/utils.py",
+      "line": 595,
+      "description": "`solve_dependencies()` is the recursive engine. For each sub-dependency in `dependant.dependencies` it resolves recursively, then calls the dependency function (awaited if async, run in threadpool if sync). Generator dependencies (`yield`-based) get wrapped in an `AsyncExitStack` so cleanup runs after the response is sent. Results are cached per request via `dependency_cache`. After all deps are solved, it extracts and validates path/query/header/cookie params using Pydantic, and body params from the parsed request body. Everything lands in a `SolvedDependency` dict that gets unpacked into your function call."
+    },
+    {
+      "title": "The ASGI bridge: request_response wraps it all",
+      "file": "fastapi/routing.py",
+      "line": 95,
+      "description": "`request_response()` is the final adapter — it converts the `(request) -> response` callable into a proper `(scope, receive, send) -> None` ASGI app. If your endpoint is sync, it wraps it in `run_in_threadpool` so it doesn't block the event loop. The two nested `AsyncExitStack`s at lines 112-115 (`fastapi_inner_astack` and `fastapi_function_astack`) are how yield-dependencies get their cleanup hooks registered. After the response is awaited and sent, the stacks unwind in order — request-scoped deps outlive function-scoped deps."
+    }
+  ]
+}

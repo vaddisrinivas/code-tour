@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CodeTour Gallery</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <style>
+    :root {
+      --bg:     #1e1e1e; --panel:  #252526; --card:  #2d2d30;
+      --hover:  #37373d; --border: #3e3e42; --accent: #007acc;
+      --accent2:#1b9ef8; --text:   #d4d4d4; --dim:   #858585;
+      --muted:  #6a6a6a;
+    }
+    *{box-sizing:border-box;margin:0;padding:0}
+    html,body{height:100%;overflow:hidden}
+    body{background:var(--bg);color:var(--text);
+         font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+    ::-webkit-scrollbar{width:6px}
+    ::-webkit-scrollbar-thumb{background:#555;border-radius:3px}
+
+    .md p   {margin-bottom:.7rem;line-height:1.65}
+    .md code{background:#1a1a2e;color:#ce9178;padding:1px 5px;border-radius:3px;
+             font-size:.83em;font-family:"Cascadia Code","Fira Code",monospace}
+    .md pre {background:#1a1a2e;padding:10px;border-radius:5px;overflow-x:auto;margin:.6rem 0}
+    .md pre code{background:none;padding:0;color:var(--text)}
+    .md ul,.md ol{padding-left:1.2rem;margin:.4rem 0}
+    .md li  {margin:.25rem 0;line-height:1.6}
+    .md strong{color:#e8e8e8}
+    .md blockquote{border-left:3px solid var(--accent);margin:.6rem 0;
+                   padding:.2rem .7rem;color:var(--dim)}
+    .md h3  {color:#e8e8e8;margin:.8rem 0 .3rem;font-size:.95rem}
+
+    #app{display:flex;flex-direction:column;height:100%}
+    #header{height:48px;min-height:48px;background:var(--panel);
+            border-bottom:1px solid var(--border);
+            display:flex;align-items:center;justify-content:space-between;
+            padding:0 16px;z-index:10}
+    #split{display:flex;flex:1;overflow:hidden}
+    #left{width:340px;min-width:260px;background:var(--panel);
+          border-right:1px solid var(--border);
+          display:flex;flex-direction:column;overflow:hidden}
+    #right{flex:1;position:relative;overflow:hidden}
+    #sb-container{width:100%;height:100%}
+    #placeholder{position:absolute;inset:0;display:flex;flex-direction:column;
+                 align-items:center;justify-content:center;gap:12px;color:var(--dim)}
+
+    .repo-item{padding:9px 14px;cursor:pointer;border-left:2px solid transparent;
+               font-size:.82rem;transition:background .1s}
+    .repo-item:hover{background:var(--hover)}
+    .repo-item.active{border-left-color:var(--accent);background:var(--hover)}
+
+    #tour-tabs{display:flex;gap:4px;padding:8px 12px;border-bottom:1px solid var(--border);
+               background:var(--card);overflow-x:auto;flex-shrink:0}
+    .tour-tab{padding:3px 10px;border-radius:3px;font-size:.73rem;cursor:pointer;
+              border:1px solid var(--border);transition:background .12s,border-color .12s;
+              white-space:nowrap}
+    .tour-tab:hover{border-color:var(--accent)}
+    .tour-tab.active{background:var(--accent);border-color:var(--accent);color:#fff}
+
+    #step-dots-bar{padding:8px 12px;border-bottom:1px solid var(--border);
+                   display:flex;align-items:center;gap:5px;flex-wrap:wrap;
+                   background:var(--card);flex-shrink:0}
+    .sdot{width:7px;height:7px;border-radius:50%;background:var(--border);
+          cursor:pointer;transition:background .15s,transform .15s;flex-shrink:0}
+    .sdot.on{background:var(--accent);transform:scale(1.5)}
+    .sdot:hover{background:var(--dim)}
+
+    #step-scroll{flex:1;overflow-y:auto;padding:16px}
+    .file-chip{display:inline-flex;align-items:center;gap:5px;background:#1a1a2e;
+               border:1px solid var(--border);border-radius:4px;padding:3px 8px;
+               font-size:.75rem;font-family:"Cascadia Code","Fira Code",monospace;
+               text-decoration:none;color:var(--dim);transition:border-color .12s,color .12s;
+               margin-bottom:12px}
+    .file-chip:hover{border-color:var(--accent);color:var(--accent2)}
+
+    #step-nav{padding:10px 12px;border-top:1px solid var(--border);
+              display:flex;align-items:center;justify-content:space-between;
+              background:var(--card);flex-shrink:0}
+    .nav-btn{background:none;border:1px solid var(--border);color:var(--dim);
+             padding:5px 14px;border-radius:4px;cursor:pointer;font-size:.8rem;
+             transition:border-color .12s,color .12s}
+    .nav-btn:hover:not(:disabled){border-color:var(--accent);color:var(--text)}
+    .nav-btn:disabled{opacity:.3;cursor:default}
+    .nav-btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+    .nav-btn.primary:hover{background:var(--accent2);border-color:var(--accent2);color:#fff}
+
+    .star-badge{color:#f0a500;font-size:.72rem}
+    @keyframes pulse{0%,100%{opacity:.4}50%{opacity:1}}
+    .loading-dot{animation:pulse 1.2s infinite}
+  </style>
+</head>
+<body>
+<div id="app">
+
+  <!-- HEADER -->
+  <div id="header">
+    <div style="display:flex;align-items:center;gap:10px">
+      <svg width="20" height="20" viewBox="0 0 100 100" fill="none">
+        <path d="M74.4 7.9L40.1 38.7 17 21.4.5 34.3l26.2 15.8L.5 65.8 17 78.7l23.1-17.3 34.3 30.7 25.1-12.3V20.2L74.4 7.9z" fill="#007acc"/>
+      </svg>
+      <span style="font-weight:600;color:#e8e8e8;font-size:.9rem">CodeTour Gallery</span>
+      <span id="header-repo-label" style="color:var(--muted);font-size:.73rem"></span>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <span id="rate-warn" style="color:#f0a500;font-size:.72rem;display:none">
+        ⚠ GitHub API rate limit — <a href="?token=YOUR_TOKEN" style="color:inherit">add token</a>
+      </span>
+      <a id="gh-repo-link" href="#" target="_blank"
+         style="color:var(--dim);font-size:.75rem;text-decoration:none;padding:4px 10px;
+                border:1px solid var(--border);border-radius:3px"
+         onmouseover="this.style.color='var(--accent2)';this.style.borderColor='var(--accent)'"
+         onmouseout="this.style.color='var(--dim)';this.style.borderColor='var(--border)'">
+        GitHub ↗
+      </a>
+      <a id="ghdev-link" href="#" target="_blank"
+         style="color:var(--dim);font-size:.75rem;text-decoration:none;padding:4px 10px;
+                border:1px solid var(--border);border-radius:3px"
+         onmouseover="this.style.color='var(--accent2)';this.style.borderColor='var(--accent)'"
+         onmouseout="this.style.color='var(--dim)';this.style.borderColor='var(--border)'">
+        github.dev ↗
+      </a>
+      <a href="skills/code-tour/SKILL.md" target="_blank"
+         style="background:var(--accent);color:#fff;font-size:.75rem;font-weight:600;
+                padding:5px 12px;border-radius:3px;text-decoration:none">
+        Get Skill
+      </a>
+    </div>
+  </div>
+
+  <!-- SPLIT -->
+  <div id="split">
+
+    <!-- LEFT -->
+    <div id="left">
+      <div style="padding:8px 12px;font-size:.7rem;color:var(--muted);
+                  text-transform:uppercase;letter-spacing:.08em;
+                  border-bottom:1px solid var(--border);background:var(--card);flex-shrink:0">
+        Repositories
+      </div>
+      <div id="repo-list" style="overflow-y:auto;flex:1">
+        <div class="loading-dot" style="padding:16px;color:var(--muted);font-size:.82rem">
+          Loading from GitHub…
+        </div>
+      </div>
+      <div id="tour-tabs" style="display:none"></div>
+      <div id="step-area" style="display:none;flex:1;flex-direction:column;overflow:hidden">
+        <div id="step-dots-bar"></div>
+        <div id="step-scroll">
+          <div id="step-badge" style="font-size:.7rem;color:var(--muted);
+               margin-bottom:8px;text-transform:uppercase;letter-spacing:.06em"></div>
+          <h2 id="step-title" style="font-size:1rem;font-weight:700;color:#e8e8e8;margin-bottom:10px"></h2>
+          <a id="file-chip" href="#" target="_blank" class="file-chip" style="display:none">
+            <span id="file-icon"></span>
+            <span id="file-path"></span>
+            <span id="file-line" style="color:var(--muted)"></span>
+          </a>
+          <div id="step-desc" class="md" style="font-size:.83rem;color:var(--text)"></div>
+        </div>
+        <div id="step-nav">
+          <button class="nav-btn" id="btn-prev" onclick="go(-1)">← Prev</button>
+          <span id="step-counter" style="font-size:.75rem;color:var(--muted)"></span>
+          <button class="nav-btn primary" id="btn-next" onclick="go(1)">Next →</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT: StackBlitz -->
+    <div id="right">
+      <div id="placeholder">
+        <svg width="40" height="40" viewBox="0 0 100 100" fill="none" opacity=".25">
+          <path d="M74.4 7.9L40.1 38.7 17 21.4.5 34.3l26.2 15.8L.5 65.8 17 78.7l23.1-17.3 34.3 30.7 25.1-12.3V20.2L74.4 7.9z" fill="#007acc"/>
+        </svg>
+        <span style="font-size:.85rem">Select a repo to open it in VS Code</span>
+      </div>
+      <div id="sb-container" style="width:100%;height:100%"></div>
+    </div>
+
+  </div>
+</div>
+
+<script type="module">
+import sdk from 'https://unpkg.com/@stackblitz/sdk@1/bundles/sdk.m.js';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CONFIG — auto-detected from GitHub Pages URL or set manually
+// ─────────────────────────────────────────────────────────────────────────────
+const CONFIG = {
+  // Override here if auto-detect fails, e.g. "srinivasvaddi/code-tour"
+  repo: null,
+  branch: 'main',
+  // Optional: GitHub personal access token to raise rate limit (60 → 5000 req/hr)
+  // Pass as ?token=ghp_xxx in the URL, or hardcode here
+  token: new URLSearchParams(location.search).get('token') || null,
+};
+
+function detectRepo() {
+  if (CONFIG.repo) return CONFIG.repo;
+  const host = location.hostname;
+  const path = location.pathname;
+  // GitHub Pages: username.github.io/repo-name/
+  if (host.endsWith('.github.io')) {
+    const user = host.replace('.github.io', '');
+    const repo = path.split('/').filter(Boolean)[0];
+    if (repo) return `${user}/${repo}`;
+  }
+  // Localhost / custom domain — can't auto-detect, show prompt
+  return null;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// GITHUB API
+// ─────────────────────────────────────────────────────────────────────────────
+const GALLERY_REPO = detectRepo();
+
+function ghHeaders() {
+  const h = { 'Accept': 'application/vnd.github+json' };
+  if (CONFIG.token) h['Authorization'] = `Bearer ${CONFIG.token}`;
+  return h;
+}
+
+async function ghFetch(path) {
+  const res = await fetch(`https://api.github.com/repos/${GALLERY_REPO}${path}`,
+                          { headers: ghHeaders() });
+  if (res.status === 403 || res.status === 429) {
+    document.getElementById('rate-warn').style.display = 'inline';
+  }
+  if (!res.ok) throw new Error(`GitHub API ${res.status}: ${path}`);
+  return res.json();
+}
+
+async function rawFetch(path) {
+  const url = `https://raw.githubusercontent.com/${GALLERY_REPO}/${CONFIG.branch}/${path}`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`raw 404: ${path}`);
+  return res.text();
+}
+
+async function repoMeta(ownerRepo) {
+  const res = await fetch(`https://api.github.com/repos/${ownerRepo}`,
+                          { headers: ghHeaders() });
+  if (!res.ok) return null;
+  return res.json();
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// STATE
+// ─────────────────────────────────────────────────────────────────────────────
+let activeRepo  = null; // { slug, ownerRepo, url, meta }
+let activeTour  = null; // parsed .tour JSON
+let stepIndex   = 0;
+let sbVm        = null;
+let tourCache   = {};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// BOOT
+// ─────────────────────────────────────────────────────────────────────────────
+async function boot() {
+  if (!GALLERY_REPO) {
+    document.getElementById('repo-list').innerHTML =
+      `<div style="padding:16px;color:var(--dim);font-size:.82rem;line-height:1.6">
+        <strong style="color:#e8e8e8">Set your repo</strong><br>
+        Add <code style="background:#1a1a2e;padding:1px 4px;border-radius:2px">
+        CONFIG.repo = "owner/repo"</code> at the top of index.html,<br>
+        or host on GitHub Pages for auto-detection.
+       </div>`;
+    return;
+  }
+
+  document.getElementById('header-repo-label').textContent = `— ${GALLERY_REPO}`;
+
+  try {
+    // List tours/ directory
+    const entries = await ghFetch('/contents/tours');
+    const slugs   = entries.filter(e => e.type === 'dir').map(e => e.name);
+
+    if (!slugs.length) {
+      document.getElementById('repo-list').innerHTML =
+        `<div style="padding:16px;color:var(--dim);font-size:.82rem">
+          No tours yet. Run the skill on a repo, then copy the .tour file to
+          <code style="background:#1a1a2e;padding:1px 4px;border-radius:2px">
+          tours/owner--repo/</code> in this gallery.
+         </div>`;
+      return;
+    }
+
+    // Load all repos in parallel
+    const repoData = await Promise.all(slugs.map(loadRepoData));
+    renderRepoList(repoData.filter(Boolean));
+
+  } catch (err) {
+    document.getElementById('repo-list').innerHTML =
+      `<div style="padding:16px;color:#f44747;font-size:.82rem">${err.message}</div>`;
+  }
+}
+
+async function loadRepoData(slug) {
+  // slug: "expressjs--express" → "expressjs/express"
+  const ownerRepo = slug.replace('--', '/');
+
+  // List .tour files in this directory
+  let files;
+  try {
+    files = await ghFetch(`/contents/tours/${slug}`);
+  } catch { return null; }
+
+  const tours = files
+    .filter(f => f.name.endsWith('.tour'))
+    .map(f => f.name.replace('.tour', ''));
+
+  // Fetch GitHub metadata for the target repo
+  const meta = await repoMeta(ownerRepo).catch(() => null);
+
+  return { slug, ownerRepo, tours, meta,
+           url: meta?.html_url || `https://github.com/${ownerRepo}` };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// REPO LIST
+// ─────────────────────────────────────────────────────────────────────────────
+function renderRepoList(repos) {
+  const el = document.getElementById('repo-list');
+  el.innerHTML = '';
+
+  const LANG_ICON = {JavaScript:'🟨',TypeScript:'🟦',Python:'🐍',
+                     Ruby:'💎',Go:'🐹',Rust:'🦀',Java:'☕'};
+
+  repos.forEach(repo => {
+    const lang  = repo.meta?.language || '';
+    const stars = repo.meta?.stargazers_count;
+    const desc  = (repo.meta?.description || '').slice(0, 55);
+
+    const d = document.createElement('div');
+    d.className = 'repo-item';
+    d.innerHTML = `
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <span style="color:#e8e8e8;font-weight:500">${repo.ownerRepo}</span>
+        ${stars != null
+          ? `<span class="star-badge">★ ${fmtStars(stars)}</span>`
+          : ''}
+      </div>
+      <div style="color:var(--muted);font-size:.73rem;margin-top:2px;display:flex;gap:8px">
+        ${lang ? `<span>${LANG_ICON[lang]||'📦'} ${lang}</span>` : ''}
+        ${desc ? `<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${desc}</span>` : ''}
+      </div>`;
+    d.onclick = () => selectRepo(repo, d);
+    el.appendChild(d);
+  });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SELECT REPO
+// ─────────────────────────────────────────────────────────────────────────────
+function selectRepo(repo, el) {
+  document.querySelectorAll('.repo-item').forEach(e => e.classList.remove('active'));
+  el.classList.add('active');
+  activeRepo = repo;
+
+  document.getElementById('gh-repo-link').href = repo.url;
+  document.getElementById('ghdev-link').href = `https://github.dev/${repo.ownerRepo}`;
+
+  renderTourTabs(repo);
+  mountStackBlitz(repo.ownerRepo);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TOUR TABS
+// ─────────────────────────────────────────────────────────────────────────────
+function renderTourTabs(repo) {
+  const bar = document.getElementById('tour-tabs');
+  bar.innerHTML = '';
+  bar.style.display = 'flex';
+
+  if (!repo.tours.length) {
+    bar.innerHTML =
+      `<span style="font-size:.75rem;color:var(--muted);padding:4px 0">
+        No tours yet — run the skill on this repo
+       </span>`;
+    document.getElementById('step-area').style.display = 'none';
+    return;
+  }
+
+  repo.tours.forEach((name, i) => {
+    const btn = document.createElement('div');
+    btn.className = 'tour-tab' + (i === 0 ? ' active' : '');
+    btn.textContent = fmtPersona(name);
+    btn.dataset.name = name;
+    btn.onclick = () => {
+      document.querySelectorAll('.tour-tab').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      loadTour(repo.slug, name);
+    };
+    bar.appendChild(btn);
+  });
+
+  loadTour(repo.slug, repo.tours[0]);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// LOAD TOUR (from GitHub raw)
+// ─────────────────────────────────────────────────────────────────────────────
+async function loadTour(slug, tourName) {
+  const key = `${slug}/${tourName}`;
+  if (!tourCache[key]) {
+    const text = await rawFetch(`tours/${slug}/${tourName}.tour`);
+    tourCache[key] = JSON.parse(text);
+  }
+  activeTour = tourCache[key];
+  stepIndex  = 0;
+
+  const area = document.getElementById('step-area');
+  area.style.display = 'flex';
+  area.style.flexDirection = 'column';
+
+  buildDots();
+  showStep();
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// STEPS
+// ─────────────────────────────────────────────────────────────────────────────
+function buildDots() {
+  const bar = document.getElementById('step-dots-bar');
+  bar.innerHTML =
+    `<span style="font-size:.7rem;color:var(--muted);margin-right:4px">
+       ${activeTour.steps.length} steps
+     </span>`;
+  activeTour.steps.forEach((_, i) => {
+    const d = document.createElement('div');
+    d.className = 'sdot' + (i === 0 ? ' on' : '');
+    d.title = activeTour.steps[i].title;
+    d.onclick = () => jumpTo(i);
+    bar.appendChild(d);
+  });
+}
+
+function showStep() {
+  const step  = activeTour.steps[stepIndex];
+  const total = activeTour.steps.length;
+  const isFile = 'file' in step, isDir = 'directory' in step;
+
+  document.querySelectorAll('.sdot').forEach((d, i) =>
+    d.classList.toggle('on', i === stepIndex));
+
+  document.getElementById('step-badge').textContent =
+    isFile ? '📄 file step' : isDir ? '📁 directory step' : '📝 note';
+  document.getElementById('step-title').textContent = step.title;
+
+  const chip = document.getElementById('file-chip');
+  if (isFile || isDir) {
+    const path = step.file || step.directory;
+    const base = `${activeRepo.url}/blob/main/${path}`;
+    chip.href = step.line ? `${base}#L${step.line}` : base;
+    document.getElementById('file-icon').textContent = isFile ? '📄' : '📁';
+    document.getElementById('file-path').textContent = path;
+    document.getElementById('file-line').textContent = step.line ? `  :${step.line}` : '';
+    chip.style.display = 'inline-flex';
+    if (sbVm) sbVm.editor.openFile(path).catch(() => {});
+  } else {
+    chip.style.display = 'none';
+  }
+
+  document.getElementById('step-desc').innerHTML =
+    marked.parse(step.description || '');
+  document.getElementById('step-counter').textContent = `${stepIndex + 1} / ${total}`;
+  document.getElementById('btn-prev').disabled = stepIndex === 0;
+  document.getElementById('btn-next').textContent =
+    stepIndex === total - 1 ? 'Done ✓' : 'Next →';
+  document.getElementById('step-scroll').scrollTop = 0;
+}
+
+function jumpTo(i) { stepIndex = i; showStep(); }
+function go(d) {
+  const n = stepIndex + d;
+  if (n >= 0 && n < (activeTour?.steps.length || 0)) jumpTo(n);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// STACKBLITZ
+// ─────────────────────────────────────────────────────────────────────────────
+async function mountStackBlitz(ownerRepo) {
+  document.getElementById('placeholder').style.display = 'none';
+  document.getElementById('sb-container').innerHTML =
+    `<div style="width:100%;height:100%;display:flex;align-items:center;
+                 justify-content:center;color:var(--muted);font-size:.85rem">
+       Loading ${ownerRepo} in VS Code…
+     </div>`;
+  sbVm = null;
+
+  try {
+    sbVm = await sdk.embedGithubProject('sb-container', ownerRepo, {
+      forceEmbedLayout: true,
+      view: 'editor',
+      theme: 'dark',
+      showSidebar: true,
+      hideNavigation: false,
+    });
+    // open current step's file if already on a tour
+    if (activeTour) {
+      const step = activeTour.steps[stepIndex];
+      if (step?.file) sbVm.editor.openFile(step.file).catch(() => {});
+    }
+  } catch {
+    document.getElementById('sb-container').innerHTML =
+      `<div style="width:100%;height:100%;display:flex;flex-direction:column;
+                   align-items:center;justify-content:center;gap:12px;
+                   color:var(--dim);font-size:.85rem">
+         <p>StackBlitz could not load this repo.</p>
+         <a href="https://github.dev/${ownerRepo}" target="_blank"
+            style="color:var(--accent2);text-decoration:none;
+                   border:1px solid var(--accent);padding:6px 16px;border-radius:4px">
+           Open in github.dev ↗
+         </a>
+       </div>`;
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// HELPERS
+// ─────────────────────────────────────────────────────────────────────────────
+function fmtPersona(name) {
+  return name.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+}
+function fmtStars(n) {
+  return n >= 1000 ? (n / 1000).toFixed(1) + 'k' : String(n);
+}
+
+document.addEventListener('keydown', e => {
+  if (!activeTour) return;
+  if (e.key === 'ArrowRight' || e.key === 'ArrowDown') go(1);
+  if (e.key === 'ArrowLeft'  || e.key === 'ArrowUp')   go(-1);
+});
+
+window.go = go;
+boot();
+</script>
+</body>
+</html>

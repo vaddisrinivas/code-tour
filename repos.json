@@ -1,0 +1,66 @@
+[
+  {
+    "slug": "expressjs--express",
+    "repo": "expressjs/express",
+    "url": "https://github.com/expressjs/express",
+    "description": "Fast, unopinionated, minimalist web framework for Node.js",
+    "language": "JavaScript",
+    "topics": ["web", "framework", "nodejs"]
+  },
+  {
+    "slug": "tiangolo--fastapi",
+    "repo": "tiangolo/fastapi",
+    "url": "https://github.com/tiangolo/fastapi",
+    "description": "FastAPI framework, high performance, easy to learn, ready for production",
+    "language": "Python",
+    "topics": ["api", "async", "pydantic"]
+  },
+  {
+    "slug": "vercel--next.js",
+    "repo": "vercel/next.js",
+    "url": "https://github.com/vercel/next.js",
+    "description": "The React Framework for the Web",
+    "language": "TypeScript",
+    "topics": ["react", "ssr", "fullstack"]
+  },
+  {
+    "slug": "django--django",
+    "repo": "django/django",
+    "url": "https://github.com/django/django",
+    "description": "The web framework for perfectionists with deadlines",
+    "language": "Python",
+    "topics": ["web", "orm", "batteries-included"]
+  },
+  {
+    "slug": "nestjs--nest",
+    "repo": "nestjs/nest",
+    "url": "https://github.com/nestjs/nest",
+    "description": "A progressive Node.js framework for building efficient and scalable server-side applications",
+    "language": "TypeScript",
+    "topics": ["nodejs", "di", "decorators"]
+  },
+  {
+    "slug": "trpc--trpc",
+    "repo": "trpc/trpc",
+    "url": "https://github.com/trpc/trpc",
+    "description": "End-to-end typesafe APIs made easy",
+    "language": "TypeScript",
+    "topics": ["api", "typesafe", "rpc"]
+  },
+  {
+    "slug": "prisma--prisma",
+    "repo": "prisma/prisma",
+    "url": "https://github.com/prisma/prisma",
+    "description": "Next-generation ORM for Node.js & TypeScript",
+    "language": "TypeScript",
+    "topics": ["orm", "database", "codegen"]
+  },
+  {
+    "slug": "supabase--supabase",
+    "repo": "supabase/supabase",
+    "url": "https://github.com/supabase/supabase",
+    "description": "The open source Firebase alternative",
+    "language": "TypeScript",
+    "topics": ["postgres", "realtime", "auth"]
+  }
+]
