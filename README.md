@@ -1,8 +1,7 @@
 # code-tour
 
-[![✅ Merged into Everything Claude Code](https://img.shields.io/badge/%E2%9C%85%20Merged-Everything%20Claude%20Code-green?style=flat-square)](https://github.com/affaan-m/everything-claude-code/blob/main/skills/code-tour/SKILL.md)
-[![Featured in Anthropic Skills](https://img.shields.io/badge/Featured-Anthropic%20Skills-blue?style=flat-square)](https://github.com/anthropics/skills)
-[![npm skills registry](https://img.shields.io/badge/npm-skills%20registry-green?style=flat-square)](https://www.npmjs.com/package/vaddisrinivas/code-tour)
+[![✅ Merged — Everything Claude Code](https://img.shields.io/badge/%E2%9C%85%20Merged-Everything%20Claude%20Code-green?style=flat-square)](https://github.com/affaan-m/everything-claude-code/blob/main/skills/code-tour/SKILL.md)
+[![✅ Merged — alirezarezvani/claude-skills](https://img.shields.io/badge/%E2%9C%85%20Merged-alirezarezvani%2Fclaude--skills-green?style=flat-square)](https://github.com/alirezarezvani/claude-skills)
 
 AI-generated [CodeTour](https://github.com/microsoft/codetour) walkthroughs for any repository.
 
